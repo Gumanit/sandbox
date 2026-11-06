@@ -1,0 +1,14 @@
+[Unit]
+Description=sandbox-backend
+After=network.target
+
+[Service]
+Type=simple
+User=sandbox-backend
+Group=sandbox-backend
+WorkingDirectory=/opt/sandbox/backend
+ExecStart=/opt/sandbox/backend/app
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

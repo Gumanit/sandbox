@@ -1,0 +1,14 @@
+# Зависимости
+node_modules/
+
+# Артефакты сборки
+dist/
+
+# Скомпилированный бинарник backend
+src/backend/app
+
+# Логи и локальные настройки
+*.log
+.env
+.env.local
+.DS_Store

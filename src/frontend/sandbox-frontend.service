@@ -1,0 +1,14 @@
+[Unit]
+Description=sandbox-frontend
+After=network.target
+
+[Service]
+User=sandbox-frontend
+Group=sandbox-frontend
+Type=exec
+# Порты: 8888 - frontend, 8081 - проксирование запросов для backend
+ExecStart=http-server /opt/sandbox/frontend/site -p 8888 --proxy http://localhost:8081
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
