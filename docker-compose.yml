@@ -1,46 +1,26 @@
-services:
-  sandbox-backend:
-    image: ${REPOSITORY_BACKEND}:${IMAGE_TAG}
-    container_name: sandbox-backend
-    restart: unless-stopped
-    pull_policy: always
-    ports:
-      - "${BACKEND_PORT:-8081}:8081"
-    networks:
-      - sandbox-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8081/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
-    security_opt:
-      - no-new-privileges:true
+version: '3.8'
 
-  sandbox-frontend:
-    image: ${REPOSITORY_FRONTEND}:${IMAGE_TAG}
-    container_name: sandbox-frontend
-    restart: unless-stopped
-    pull_policy: always
-    environment:
-      BACKEND_URL: ${BACKEND_URL:-http://sandbox-backend:8081}
+services:
+  backend:
+    image: ${IMAGE_REGISTRY}${REPOSITORY_BACKEND}:${IMAGE_TAG:-latest}
+    container_name: sandbox-backend
     ports:
-      - "${FRONTEND_PORT:-8888}:8888"
-    depends_on:
-      sandbox-backend:
-        condition: service_healthy
+      - "8081:8081"
     networks:
       - sandbox-network
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8888/"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
-    security_opt:
-      - no-new-privileges:true
+    restart: unless-stopped
+
+  frontend:
+    image: ${IMAGE_REGISTRY}${REPOSITORY_FRONTEND}:${IMAGE_TAG:-latest}
+    container_name: sandbox-frontend
+    ports:
+      - "8888:8888"
+    depends_on:
+      - backend
+    networks:
+      - sandbox-network
+    restart: unless-stopped
 
 networks:
   sandbox-network:
-    name: sandbox-network
     driver: bridge
