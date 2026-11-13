@@ -109,15 +109,27 @@ jobs:
 
       - name: SCP to VM
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ vars.VM_HOST }} >> ~/.ssh/known_hosts
-
-          # Убрали deploy.sh, чтобы scp не упал с ошибкой "No such file or directory"
+          # ... настройка ssh ...
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
-            docker-compose.yml .env \
+            docker-compose.yml .env deploy.sh \
             ${{ secrets.VM_USER }}@${{ vars.VM_HOST }}:~/
+
+      - name: Deploy via SSH
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes ${{ secrets.VM_USER }}@${{ vars.VM_HOST }} << 'EOF'
+            cd ~/
+            
+            REGISTRY="${{ vars.IMAGE_REGISTRY }}"
+            if [ -z "$REGISTRY" ]; then REGISTRY="${{ secrets.NEXUS_HOST }}"; fi
+            if [ "$REGISTRY" == "ghcr.io" ]; then
+              echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            else
+              echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login $REGISTRY -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
+            fi
+            
+            chmod +x deploy.sh
+            ./deploy.sh
+          EOF
 
       - name: Deploy via SSH
         run: |
