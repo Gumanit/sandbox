@@ -34,6 +34,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          config-inline: |
+            [registry."${{ secrets.NEXUS_HOST }}"]
+              http = true
+              insecure = true
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -44,17 +49,8 @@ jobs:
 
       - name: Configure Docker insecure registry
         run: |
-          # Добавляем Nexus в список insecure-registries
           echo '{"insecure-registries":["${{ secrets.NEXUS_HOST }}"]}' | sudo tee /etc/docker/daemon.json
-          # Перезапускаем Docker, чтобы применить настройки
           sudo systemctl restart docker
-
-      - name: Login to Nexus
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.NEXUS_HOST }}
-          username: ${{ secrets.NEXUS_REPO_USER }}
-          password: ${{ secrets.NEXUS_REPO_PASS }}
 
       - name: Login to Nexus
         uses: docker/login-action@v3
@@ -102,7 +98,6 @@ jobs:
 
           echo "${{ secrets.APP_ENV_FILE }}" > .env
           
-          # По умолчанию Nexus, если IMAGE_REGISTRY не задана
           REGISTRY="${{ vars.IMAGE_REGISTRY }}"
           if [ -z "$REGISTRY" ]; then
             REGISTRY="${{ secrets.NEXUS_HOST }}"
@@ -119,8 +114,9 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ vars.VM_HOST }} >> ~/.ssh/known_hosts
 
+          # Убрали deploy.sh, чтобы scp не упал с ошибкой "No such file or directory"
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
-            docker-compose.yml .env deploy.sh \
+            docker-compose.yml .env \
             ${{ secrets.VM_USER }}@${{ vars.VM_HOST }}:~/
 
       - name: Deploy via SSH
