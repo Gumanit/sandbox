@@ -12,3 +12,5 @@ src/backend/app
 .env
 .env.local
 .DS_Store
+
+artifacts/
