@@ -1,0 +1,135 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+    inputs:
+      VERSION:
+        required: false
+        type: string
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Generate version
+        id: version
+        run: echo "version=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Nexus
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.NEXUS_HOST }}
+          username: ${{ secrets.NEXUS_REPO_USER }}
+          password: ${{ secrets.NEXUS_REPO_PASS }}
+
+      - name: Metadata action
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/sandbox-${{ matrix.component }}
+            ${{ secrets.NEXUS_HOST }}/nagaev-${{ matrix.component }}-docker/sandbox-${{ matrix.component }}
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.component }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [version, build]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare .env
+        run: |
+          DEPLOY_VERSION="${{ github.event.inputs.VERSION }}"
+          if [ -z "$DEPLOY_VERSION" ]; then
+            DEPLOY_VERSION="${{ needs.version.outputs.version }}"
+          fi
+
+          echo "${{ secrets.APP_ENV_FILE }}" > .env
+          
+          # По умолчанию Nexus, если IMAGE_REGISTRY не задана
+          REGISTRY="${{ vars.IMAGE_REGISTRY }}"
+          if [ -z "$REGISTRY" ]; then
+            REGISTRY="${{ secrets.NEXUS_HOST }}"
+          fi
+          
+          echo "IMAGE_REGISTRY=$REGISTRY" >> .env
+          echo "IMAGE_TAG=$DEPLOY_VERSION" >> .env
+          echo "VERSION=$DEPLOY_VERSION" >> .env
+
+      - name: SCP to VM
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ vars.VM_HOST }} >> ~/.ssh/known_hosts
+
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
+            docker-compose.yml .env deploy.sh \
+            ${{ secrets.VM_USER }}@${{ vars.VM_HOST }}:~/
+
+      - name: Deploy via SSH
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes ${{ secrets.VM_USER }}@${{ vars.VM_HOST }} << 'EOF'
+            cd ~/
+            
+            REGISTRY="${{ vars.IMAGE_REGISTRY }}"
+            if [ -z "$REGISTRY" ]; then
+              REGISTRY="${{ secrets.NEXUS_HOST }}"
+            fi
+
+            if [ "$REGISTRY" == "ghcr.io" ]; then
+              echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            else
+              echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login $REGISTRY -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
+            fi
+
+            docker compose pull
+            docker compose up -d --remove-orphans --force-recreate
+            docker image prune -f
+          EOF
+
+      - name: Health check
+        run: |
+          curl -f http://${{ vars.VM_HOST }}:8080/health || exit 1
