@@ -78,7 +78,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.component }}
+          context: ./src/${{ matrix.component }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -146,4 +146,4 @@ jobs:
 
       - name: Health check
         run: |
-          curl -f http://${{ vars.VM_HOST }}:8080/health || exit 1
+          curl -f http://${{ vars.VM_HOST }}:8081/health || exit 1
