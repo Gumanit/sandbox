@@ -1,13 +1,13 @@
 services:
-  momo-store-backend:
-    image: ${BACKEND_IMAGE:-93.77.166.24:8081/nagaev-backend-docker/momo-store-backend:latest}
-    container_name: momo-store-backend
+  sandbox-backend:
+    image: ${REPOSITORY_BACKEND}:${IMAGE_TAG}
+    container_name: sandbox-backend
     restart: unless-stopped
     pull_policy: always
     ports:
       - "${BACKEND_PORT:-8081}:8081"
     networks:
-      - momo-store
+      - sandbox-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8081/health"]
       interval: 10s
@@ -17,20 +17,20 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  momo-store-frontend:
-    image: ${FRONTEND_IMAGE:-93.77.166.24:8081/nagaev-frontend-docker/momo-store-frontend:latest}
-    container_name: momo-store-frontend
+  sandbox-frontend:
+    image: ${REPOSITORY_FRONTEND}:${IMAGE_TAG}
+    container_name: sandbox-frontend
     restart: unless-stopped
     pull_policy: always
     environment:
-      BACKEND_URL: ${BACKEND_URL:-http://momo-store-backend:8081}
+      BACKEND_URL: ${BACKEND_URL:-http://sandbox-backend:8081}
     ports:
       - "${FRONTEND_PORT:-8888}:8888"
     depends_on:
-      momo-store-backend:
+      sandbox-backend:
         condition: service_healthy
     networks:
-      - momo-store
+      - sandbox-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8888/"]
       interval: 10s
@@ -41,6 +41,6 @@ services:
       - no-new-privileges:true
 
 networks:
-  momo-store:
-    name: momo-store
+  sandbox-network:
+    name: sandbox-network
     driver: bridge
