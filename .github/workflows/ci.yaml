@@ -85,73 +85,67 @@ jobs:
     needs: [version, build]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: production 
+    env:
+      VM_HOST: ${{ vars.VM_HOST || secrets.VM_HOST }}
+      VM_USER: ${{ vars.VM_USER || secrets.VM_USER }}
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || secrets.NEXUS_HOST }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Prepare .env
         run: |
+          set -euo pipefail
           DEPLOY_VERSION="${{ github.event.inputs.VERSION }}"
           if [ -z "$DEPLOY_VERSION" ]; then
             DEPLOY_VERSION="${{ needs.version.outputs.version }}"
           fi
-
-          echo "${{ secrets.APP_ENV_FILE }}" > .env
           
-          REGISTRY="${{ vars.IMAGE_REGISTRY }}"
-          if [ -z "$REGISTRY" ]; then
-            REGISTRY="${{ secrets.NEXUS_HOST }}"
-          fi
-          
-          echo "IMAGE_REGISTRY=$REGISTRY" >> .env
-          echo "IMAGE_TAG=$DEPLOY_VERSION" >> .env
-          echo "VERSION=$DEPLOY_VERSION" >> .env
+          printf '%s\n' "${{ secrets.APP_ENV_FILE }}" > .env
+          {
+            echo "IMAGE_REGISTRY=$IMAGE_REGISTRY"
+            echo "IMAGE_TAG=$DEPLOY_VERSION"
+            echo "VERSION=$DEPLOY_VERSION"
+            echo "REPOSITORY_BACKEND=$IMAGE_REGISTRY/nagaev-backend-docker/sandbox-backend"
+            echo "REPOSITORY_FRONTEND=$IMAGE_REGISTRY/nagaev-frontend-docker/sandbox-frontend"
+          } >> .env
 
-      - name: SCP to VM
+      - name: Setup SSH and upload files
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
         run: |
-          # ... настройка ssh ...
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes \
-            docker-compose.yml .env deploy.sh \
-            ${{ secrets.VM_USER }}@${{ vars.VM_HOST }}:~/
+          set -euo pipefail
+          : "${VM_HOST:?VM_HOST is empty — создайте Variables VM_HOST}"
+          : "${VM_USER:?VM_USER is empty — создайте Variables VM_USER}"
+          : "${VM_SSH_KEY:?secret VM_SSH_KEY is empty}"
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VM_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan -T 10 -H "$VM_HOST" > ~/.ssh/known_hosts
+          test -s ~/.ssh/known_hosts
+
+          # ВНИМАНИЕ: Файл deploy.sh должен существовать в репозитории!
+          scp -v -i ~/.ssh/id_rsa \
+              -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+              docker-compose.yml .env deploy.sh "$VM_USER@$VM_HOST:~/"
 
       - name: Deploy via SSH
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes ${{ secrets.VM_USER }}@${{ vars.VM_HOST }} << 'EOF'
+          ssh -i ~/.ssh/id_rsa \
+              -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+              "$VM_USER@$VM_HOST" << EOF
+            set -euo pipefail
             cd ~/
-            
-            REGISTRY="${{ vars.IMAGE_REGISTRY }}"
-            if [ -z "$REGISTRY" ]; then REGISTRY="${{ secrets.NEXUS_HOST }}"; fi
-            if [ "$REGISTRY" == "ghcr.io" ]; then
-              echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            else
-              echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login $REGISTRY -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
-            fi
-            
+            echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login "$IMAGE_REGISTRY" -u "${{ secrets.NEXUS_REPO_USER }}" --password-stdin
             chmod +x deploy.sh
             ./deploy.sh
           EOF
 
-      - name: Deploy via SSH
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes ${{ secrets.VM_USER }}@${{ vars.VM_HOST }} << 'EOF'
-            cd ~/
-            
-            REGISTRY="${{ vars.IMAGE_REGISTRY }}"
-            if [ -z "$REGISTRY" ]; then
-              REGISTRY="${{ secrets.NEXUS_HOST }}"
-            fi
-
-            if [ "$REGISTRY" == "ghcr.io" ]; then
-              echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            else
-              echo "${{ secrets.NEXUS_REPO_PASS }}" | docker login $REGISTRY -u ${{ secrets.NEXUS_REPO_USER }} --password-stdin
-            fi
-
-            docker compose pull
-            docker compose up -d --remove-orphans --force-recreate
-            docker image prune -f
-          EOF
-
       - name: Health check
         run: |
-          curl -f http://${{ vars.VM_HOST }}:8081/health || exit 1
+          curl -f "http://$VM_HOST:8081/health" || exit 1
