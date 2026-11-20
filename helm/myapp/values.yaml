@@ -1,0 +1,31 @@
+image:
+  backend: ghcr.io/gumanit/sandbox-backend
+  frontend: ghcr.io/gumanit/sandbox-frontend
+  tag: latest           
+  pullPolicy: Always
+
+backend:
+  replicas: 1
+  port: 8081
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+frontend:
+  replicas: 1
+  port: 8888
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
+frontendService:
+  type: NodePort
+  port: 80

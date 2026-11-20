@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-frontend
+  labels:
+    app: sandbox-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sandbox-frontend
+  template:
+    metadata:
+      labels:
+        app: sandbox-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "ghcr.io/gumanit/sandbox-frontend:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8888
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
