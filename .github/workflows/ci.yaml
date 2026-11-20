@@ -24,32 +24,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build builder stage
+      - name: Build test image from builder stage
         run: docker build --target builder -t go-test:local ./src/backend
 
       - name: Run Go tests in builder image
         run: |
-          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src go-test:local sh -c '
-            set -euo pipefail
-            go install github.com/jstemmer/go-junit-report/v2@v2.1.0
-            export PATH="$PATH:$(go env GOPATH)/bin"
-            mkdir -p reports
-            set +e
-            go test -v -count=1 -coverprofile=coverage.out ./... > test.log 2>&1
-            status=$?
-            set -e
-            go-junit-report < test.log > reports/junit.xml || true
-            cat test.log
-            exit $status
-          '
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/src/backend:/src" \
+            -w /src \
+            go-test:local sh -c '
+              set -eu
+              go install github.com/jstemmer/go-junit-report/v2@v2.1.0
+              export PATH="$PATH:$(go env GOPATH)/bin"
+              mkdir -p reports
+              set +e
+              go test -v -count=1 -coverprofile=coverage.out ./... > test.log 2>&1
+              status=$?
+              set -e
+              go-junit-report < test.log > reports/junit.xml || true
+              cat test.log
+              exit $status
+            '
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
           path: |
-            reports/junit.xml
-            coverage.out
+            src/backend/reports/junit.xml
+            src/backend/coverage.out
+            src/backend/test.log
   
   build:
     needs: [version, test]
