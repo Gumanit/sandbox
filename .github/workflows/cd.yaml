@@ -1,0 +1,52 @@
+name: CD Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yc
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+
+      - name: Configure yc
+        env:
+          YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/yc-sa-key.json"
+          printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/yc-sa-key.json"
+          yc config profile create ci
+          yc config set service-account-key "$RUNNER_TEMP/yc-sa-key.json"
+          yc config set folder-id "$YC_FOLDER_ID"
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster access
+        run: kubectl cluster-info
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4.1.0
+        with:
+          version: 'v3.16.2'
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install myapp ./helm/myapp \
+            --set image.tag=${{ github.event.inputs.version }} \
+            --namespace default \
+            --wait
