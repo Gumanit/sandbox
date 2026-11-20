@@ -33,11 +33,14 @@ jobs:
       - name: Configure kubectl
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          sed -i 's|C:\\Users\\1\\yandex-cloud\\bin\\yc.exe|yc|g' ~/.kube/config
           chmod 600 ~/.kube/config
 
       - name: Verify cluster access
-        run: kubectl cluster-info
+        run: |
+          cat ~/.kube/config
+          kubectl cluster-info
 
       - name: Install Helm
         uses: azure/setup-helm@v4.1.0
