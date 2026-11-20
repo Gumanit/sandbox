@@ -35,6 +35,7 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
           sed -i 's|C:\\Users\\1\\yandex-cloud\\bin\\yc.exe|yc|g' ~/.kube/config
+          sed -i 's|--profile=default|--profile=ci|g' ~/.kube/config
           chmod 600 ~/.kube/config
 
       - name: Verify cluster access
