@@ -30,6 +30,7 @@ jobs:
       - name: Run Go tests in builder image
         run: |
           docker run --rm \
+            -e CGO_ENABLED=0 \
             -v "$GITHUB_WORKSPACE/src/backend:/src" \
             -w /src \
             go-test:local sh -c '
