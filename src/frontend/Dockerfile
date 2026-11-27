@@ -1,27 +1,19 @@
-FROM node:16-alpine AS builder
-
+FROM node:16-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
+FROM deps AS build
 COPY . .
+
+ARG VUE_APP_API_URL=""
+ENV VUE_APP_API_URL=$VUE_APP_API_URL
+
 RUN npm run build
 
-FROM node:16-alpine AS runtime
-
-WORKDIR /app
-
-RUN npm install -g http-server@14.1.1
-
-RUN addgroup -S -g 10002 frontend && \
-    adduser -S -D -H -u 10002 -G frontend -s /sbin/nologin frontend
-
-COPY --from=builder --chown=frontend:frontend /app/dist /app/site
-
-ENV BACKEND_URL=http://momo-store-backend:8081
-
-EXPOSE 8888
-USER 10002:10002
-CMD ["sh", "-c", "exec http-server /app/site -p 8888 --proxy ${BACKEND_URL:-http://momo-store-backend:8081}"]
-
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS prod
+COPY default.conf /etc/nginx/conf.d/default.conf
+COPY --from=build --chown=101:101 /app/dist /usr/share/nginx/html
+EXPOSE 8080

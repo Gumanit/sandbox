@@ -1,28 +1,24 @@
-# ---- Стадия сборки ----
 FROM golang:1.17-alpine AS builder
-
-WORKDIR /app
+WORKDIR /src
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /app/app ./cmd/api
+ENV CGO_ENABLED=0
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    GOOS=linux GOARCH=amd64 \
+    go build -trimpath -buildvcs=false \
+      -ldflags="-s -w" \
+      -o /out/app ./cmd/api
 
+FROM builder AS test
+RUN --mount=type=cache,target=/root/.cache/go-build go test ./...
 
-FROM golang:1.17-alpine AS runtime
-
+FROM gcr.io/distroless/static-debian12:nonroot AS prod
 WORKDIR /app
-
-RUN addgroup -S -g 10001 backend && \
-    adduser -S -D -H -u 10001 -G backend -s /sbin/nologin backend
-
-COPY --from=builder --chown=backend:backend /app/app /app/app
-
+COPY --from=builder /out/app /app/app
 EXPOSE 8081
-
-USER 10001:10001
-
+USER nonroot:nonroot
 CMD ["/app/app"]

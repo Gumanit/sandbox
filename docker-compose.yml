@@ -49,7 +49,7 @@ services:
     networks:
       - sandbox 
     ports:
-      - "8889:8888"
+      - "8889:8080"
     # Для автоматизации масштабирования backend
     # volumes:
     #   - "/var/run/docker.sock:/tmp/docker.sock:ro"
