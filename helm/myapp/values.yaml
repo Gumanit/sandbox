@@ -17,7 +17,7 @@ backend:
 
 frontend:
   replicas: 1
-  port: 8888
+  port: 8080
   resources:
     requests:
       cpu: "50m"
