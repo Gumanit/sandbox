@@ -22,6 +22,14 @@ func (i *Instance) CreateOrderController(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if i.orders != nil {
+		if err := i.orders.SaveOrder(ctx, id); err != nil {
+			logger.Log.Error("cannot save order to database", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).
 		Encode(map[string]interface{}{

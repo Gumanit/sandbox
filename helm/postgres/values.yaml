@@ -1,0 +1,24 @@
+image:
+  repository: postgres
+  tag: "16-alpine"
+  pullPolicy: IfNotPresent
+
+auth:
+  username: postgres
+  password: postgres
+  database: postgres
+
+persistence:
+  size: 2Gi
+  storageClass: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+service:
+  port: 5432

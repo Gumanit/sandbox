@@ -29,3 +29,14 @@ frontend:
 frontendService:
   type: NodePort
   port: 80
+
+database:
+  enabled: true
+  host: postgres
+  port: 5432
+  name: postgres
+  user: postgres
+  sslMode: disable
+  passwordSecret:
+    name: postgres-credentials
+    key: password

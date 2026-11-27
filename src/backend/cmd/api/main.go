@@ -37,8 +37,16 @@ func run() error {
 		return fmt.Errorf("cannot bootstrap dumplings store: %w", err)
 	}
 
+	ordersStore, err := dependencies.NewOrdersStore(context.Background())
+	if err != nil {
+		return fmt.Errorf("cannot bootstrap orders store: %w", err)
+	}
+	if ordersStore != nil {
+		defer func() { _ = ordersStore.Close() }()
+	}
+
 	logger.Log.Debug("creating app instance")
-	instance, err := app.NewInstance(store)
+	instance, err := app.NewInstance(store, ordersStore)
 	if err != nil {
 		return fmt.Errorf("cannot create app instance: %w", err)
 	}

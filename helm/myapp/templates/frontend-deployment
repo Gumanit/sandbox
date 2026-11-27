@@ -24,3 +24,7 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
+
+          env:
+            - name: BACKEND_URL
+              value: "http://{{ .Release.Name }}-backend:8081"
