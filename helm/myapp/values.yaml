@@ -26,8 +26,13 @@ frontend:
       cpu: "200m"
       memory: "256Mi"
 
+ingress:
+  enabled: true
+  className: nginx
+  host: www.laba6.ru
+
 frontendService:
-  type: NodePort
+  type: ClusterIP
   port: 80
 
 database:
