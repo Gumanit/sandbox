@@ -61,4 +61,4 @@ jobs:
           helm upgrade --install myapp ./helm/myapp \
             --namespace default \
             --set image.tag=${{ inputs.version }} \
-            --wait --rollback-on-failure
+            --wait --atomic
