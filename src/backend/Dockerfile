@@ -9,7 +9,7 @@ COPY . .
 ENV CGO_ENABLED=0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     GOOS=linux GOARCH=amd64 \
-    go build -trimpath -buildvcs=false \
+    go build -trimpath \
       -ldflags="-s -w" \
       -o /out/app ./cmd/api
 
