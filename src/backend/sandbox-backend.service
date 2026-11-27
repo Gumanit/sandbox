@@ -10,5 +10,14 @@ WorkingDirectory=/opt/sandbox/backend
 ExecStart=/opt/sandbox/backend/app
 Restart=on-failure
 
+# Переменные окружения для интеграции с PostgreSQL (по умолчанию интеграция отключена)
+# Environment=DB_ENABLED=true
+# Environment=DB_HOST=127.0.0.1
+# Environment=DB_PORT=5432
+# Environment=DB_USER=postgres
+# Environment=DB_PASSWORD=postgres
+# Environment=DB_NAME=postgres
+# Environment=DB_SSLMODE=disable
+
 [Install]
 WantedBy=multi-user.target

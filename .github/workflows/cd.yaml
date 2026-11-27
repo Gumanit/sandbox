@@ -1,6 +1,11 @@
 name: CD Pipeline
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
@@ -10,6 +15,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-myapp
+      cancel-in-progress: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -51,6 +59,6 @@ jobs:
       - name: Deploy with Helm
         run: |
           helm upgrade --install myapp ./helm/myapp \
-            --set image.tag=${{ github.event.inputs.version }} \
             --namespace default \
-            --wait
+            --set image.tag=${{ inputs.version }} \
+            --wait --atomic

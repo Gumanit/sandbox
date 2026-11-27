@@ -17,7 +17,7 @@ backend:
 
 frontend:
   replicas: 1
-  port: 8888
+  port: 8080
   resources:
     requests:
       cpu: "50m"
@@ -26,6 +26,22 @@ frontend:
       cpu: "200m"
       memory: "256Mi"
 
+ingress:
+  enabled: true
+  className: nginx
+  host: www.laba6.ru
+
 frontendService:
-  type: NodePort
+  type: ClusterIP
   port: 80
+
+database:
+  enabled: true
+  host: postgres
+  port: 5432
+  name: postgres
+  user: postgres
+  sslMode: disable
+  passwordSecret:
+    name: postgres-credentials
+    key: password

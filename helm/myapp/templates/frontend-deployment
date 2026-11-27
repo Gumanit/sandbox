@@ -6,6 +6,11 @@ metadata:
     app: {{ .Release.Name }}-frontend
 spec:
   replicas: {{ .Values.frontend.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: {{ .Release.Name }}-frontend
@@ -24,3 +29,7 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
+
+          env:
+            - name: BACKEND_URL
+              value: "http://{{ .Release.Name }}-backend:8081"

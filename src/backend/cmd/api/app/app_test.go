@@ -17,7 +17,7 @@ import (
 func TestFakeAppIntegrational(t *testing.T) {
 	store, err := dependencies.NewFakeDumplingsStore()
 	assert.NoError(t, err)
-	app, err := NewInstance(store)
+	app, err := NewInstance(store, nil)
 	assert.NoError(t, err)
 
 	t.Run("create_order", func(t *testing.T) {

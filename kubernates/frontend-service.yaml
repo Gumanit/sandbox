@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: sandbox-frontend
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: sandbox-frontend
   ports:
     - port: 80
-      targetPort: 8888
+      targetPort: 8080

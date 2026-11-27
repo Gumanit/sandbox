@@ -118,6 +118,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  
+  deploy:
+    needs: [version, build]
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/cd.yaml
+    with:
+      version: ${{ needs.version.outputs.version }}
+    secrets: inherit
 
   # deploy:
   #   needs: [version, build]

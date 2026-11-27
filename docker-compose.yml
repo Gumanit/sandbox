@@ -1,26 +1,67 @@
-version: '3.8'
-
 services:
   backend:
-    image: ${REPOSITORY_BACKEND}:${IMAGE_TAG:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    image: "${REGISTRY}${BACKEND_IMAGE}:${IMAGE_TAG:-latest}"
     container_name: sandbox-backend
-    ports:
-      - "8081:8081"
+    env_file:
+      - .env
     networks:
-      - sandbox-network
-    restart: unless-stopped
+      - sandbox
+    expose:
+      - "8081"
+    # Для сборки в ходе отладки
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    ports:
+    - "8081:8081"
+    healthcheck:
+      test: curl --fail -s http://localhost:8081/products
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 6
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: sandbox-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - sandbox
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
-    image: ${REPOSITORY_FRONTEND}:${IMAGE_TAG:-latest}
+    image: "${REGISTRY}${FRONTEND_IMAGE}:${IMAGE_TAG:-latest}"
     container_name: sandbox-frontend
+    env_file:
+      - .env
+    networks:
+      - sandbox 
     ports:
-      - "8888:8888"
+      - "8889:8080"
+    # Для автоматизации масштабирования backend
+    # volumes:
+    #   - "/var/run/docker.sock:/tmp/docker.sock:ro"
     depends_on:
       - backend
-    networks:
-      - sandbox-network
-    restart: unless-stopped
+    # Для сборки в ходе отладки
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
 
 networks:
-  sandbox-network:
-    driver: bridge
+  sandbox:
+
+volumes:
+  postgres-data:

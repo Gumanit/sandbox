@@ -7,11 +7,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"gitlab.praktikum-services.ru/Stasyan/momo-store/internal/store/dumplings"
+	"gitlab.praktikum-services.ru/Stasyan/momo-store/internal/store/orders"
 )
 
 // Instance represents API app instance
 type Instance struct {
-	store dumplings.Store
+	store  dumplings.Store
+	orders orders.Store
 
 	// metrics
 	metricsRegistry         *prometheus.Registry
@@ -22,7 +24,7 @@ type Instance struct {
 }
 
 // NewInstance returns new app instance
-func NewInstance(store dumplings.Store) (*Instance, error) {
+func NewInstance(store dumplings.Store, orders orders.Store) (*Instance, error) {
 	metricsRegistry := prometheus.NewRegistry()
 
 	responseTimingsHistogram := prometheus.NewHistogramVec(
@@ -62,7 +64,8 @@ func NewInstance(store dumplings.Store) (*Instance, error) {
 	metricsRegistry.MustRegister(dumplingsListingCounter)
 
 	return &Instance{
-		store: store,
+		store:  store,
+		orders: orders,
 
 		metricsRegistry:         metricsRegistry,
 		responseTimings:         responseTimingsHistogram,
